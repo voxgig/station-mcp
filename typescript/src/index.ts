@@ -49,20 +49,20 @@ function entitiesof(descriptor: any): { [entity: string]: string[] } {
 }
 
 export function makemcp(station: StationLike): Mcp {
-  const answer: { [name: string]: () => any } = {
-    station_status: () => ({ stub: true, ...station.status() }),
-    station_integrations: () => ({
+  const answer = new Map<string, () => any>([
+    ['station_status', () => ({ stub: true, ...station.status() })],
+    ['station_integrations', () => ({
       stub: true,
       integrations: station.plugins().map((p) => ({
         plugin: p.name, api: p.slug, entities: entitiesof(p.descriptor),
       })),
-    }),
-  }
+    })],
+  ])
 
   return {
     tools: () => TOOLS.map((t) => ({ ...t, inputSchema: { type: 'object', properties: {} } })),
     call(name) {
-      const fn = answer[name]
+      const fn = answer.get(name)
       if (undefined === fn) {
         return { isError: true, content: [{ type: 'text', text: 'unknown tool: ' + name }] }
       }
