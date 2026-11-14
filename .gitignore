@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# The built package is committed, so a consumer needs no build step.
+!/typescript/dist/
+/typescript/dist/test/
