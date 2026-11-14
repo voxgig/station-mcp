@@ -42,9 +42,11 @@ test('the tools go live in a station host and answer from the station', () => {
 
 test('an unknown tool is an error result, not a throw', () => {
   const mcp = makemcp({ status: () => ({}), plugins: () => [] })
-  const result = mcp.call('station_call')
-  Assert.strictEqual(result.isError, true)
-  Assert.strictEqual(result.content[0].text, 'unknown tool: station_call')
+  for (const name of ['station_call', 'constructor', '__proto__', 'hasOwnProperty', 'toString']) {
+    const result = mcp.call(name)
+    Assert.strictEqual(result.isError, true, name)
+    Assert.strictEqual(result.content[0].text, 'unknown tool: ' + name)
+  }
 })
 
 test('integrations summarise each bound plugin\'s entities and ops, sorted', () => {
