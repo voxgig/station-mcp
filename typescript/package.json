@@ -1,0 +1,22 @@
+{
+  "name": "@voxgig/station-mcp",
+  "version": "0.0.1",
+  "description": "A voxgig/station extension: an MCP tool surface over a Station. A stub for now.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/voxgig/station-mcp.git", "directory": "typescript" },
+  "type": "commonjs",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": ["LICENSE", "dist/src"],
+  "scripts": {
+    "build": "tsc",
+    "test": "node ../tools/comment-gate.cjs && npm run build && node --test \"dist/test/*.test.js\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@voxgig/plugin": "^0.2.0",
+    "@voxgig/station": "^0.3.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": { "node": ">=22" }
+}
