@@ -3,7 +3,18 @@
 station-mcp is a plugin for [voxgig/station](https://github.com/voxgig/station):
 station loads it when a caller hands it the definition, and never otherwise.
 It follows station's family layout: one directory per language, TypeScript
-canonical. Only `typescript/` exists so far, and it is a stub.
+canonical. Only `typescript/` exists so far.
+
+It serves MCP in the application's process, over the clients the Station
+tells it of through station's `sdk.bound` point. Its tools take the shape
+sdkgen's `go-mcp` target gives its own, and that shape is the contract:
+change it there first. Every result passes through the Station's `redact()`,
+and `serve()` writes nothing but JSON-RPC frames.
+
+Its tests link a station checkout (`STATION_HOME`, else `../station`) in
+place of the published package, because they need station's extension
+points before a release carries them. `make build` does the linking; a
+plain `npm install` puts the published package back.
 
 ## Building and testing
 

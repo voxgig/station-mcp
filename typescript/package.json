@@ -1,7 +1,7 @@
 {
   "name": "@voxgig/station-mcp",
   "version": "0.0.1",
-  "description": "A voxgig/station extension: an MCP tool surface over a Station. A stub for now.",
+  "description": "A voxgig/station extension: an MCP server, in process, over the SDKs a Station binds.",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/voxgig/station-mcp.git", "directory": "typescript" },
   "type": "commonjs",
