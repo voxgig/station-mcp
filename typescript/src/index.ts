@@ -1,43 +1,43 @@
 
+import { PROTOCOL_VERSIONS, SERVER_INFO, handle, serve } from './server'
+import type { Stdio, ToolSurface } from './server'
+import { runtool, sdktools, toolprefix } from './tools'
+import type { BoundSdk, McpResult, McpTool } from './tools'
+
+export { PROTOCOL_VERSIONS, SERVER_INFO, toolprefix }
+export type { BoundSdk, McpResult, McpTool, Stdio }
+
 // The slice of a voxgig/station Station that the tools read.
 export type StationLike = {
   status(): { [key: string]: any }
   plugins(): { name: string, slug: string, descriptor: any }[]
+  redact(text: string): string
 }
 
-export type McpTool = {
-  name: string
-  description: string
-  inputSchema: { type: 'object', properties: { [key: string]: any } }
+export type McpOptions = { write?: boolean }
+
+export type Mcp = ToolSurface & {
+  handle(message: any): Promise<any>
+  serve(io: Stdio): () => void
 }
 
-export type McpResult = {
-  content: { type: 'text', text: string }[]
-  isError?: boolean
-}
+// The station point that tells an extension of each client bound.
+export const BOUND_POINT = 'sdk.bound'
 
-export type Mcp = {
-  tools(): McpTool[]
-  call(name: string, args?: { [key: string]: any }): McpResult
-}
-
-// Two of the proxy daemon's tools, by the same names, answered in process.
-const TOOLS: McpTool[] = [
+const STATION_TOOLS: McpTool[] = [
   {
     name: 'station_status',
     description: 'Is station healthy: mode, profile, each bound plugin and its isolation rung, and the event counters.',
     inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
   },
   {
     name: 'station_integrations',
     description: 'List bound plugins with a compact entity/op summary.',
     inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
   },
 ]
-
-function text(value: any): McpResult {
-  return { content: [{ type: 'text', text: JSON.stringify(value) }] }
-}
 
 function entitiesof(descriptor: any): { [entity: string]: string[] } {
   const out: { [entity: string]: string[] } = {}
@@ -48,34 +48,58 @@ function entitiesof(descriptor: any): { [entity: string]: string[] } {
   return out
 }
 
-export function makemcp(station: StationLike): Mcp {
-  const answer = new Map<string, () => any>([
-    ['station_status', () => ({ stub: true, ...station.status() })],
+export function makemcp(station: StationLike, sdks: BoundSdk[] = [], options: McpOptions = {}): Mcp {
+  const answers = new Map<string, () => any>([
+    ['station_status', () => station.status()],
     ['station_integrations', () => ({
-      stub: true,
       integrations: station.plugins().map((p) => ({
         plugin: p.name, api: p.slug, entities: entitiesof(p.descriptor),
       })),
     })],
   ])
 
-  return {
-    tools: () => TOOLS.map((t) => ({ ...t, inputSchema: { type: 'object', properties: {} } })),
-    call(name) {
-      const fn = answer.get(name)
-      if (undefined === fn) {
-        return { isError: true, content: [{ type: 'text', text: 'unknown tool: ' + name }] }
+  // Every result and every failure passes through the Station's redaction.
+  const text = (value: any, isError?: boolean): McpResult => ({
+    content: [{ type: 'text', text: station.redact(JSON.stringify(value, null, 2)) }],
+    ...(isError ? { isError: true } : {}),
+  })
+
+  const current = () => sdktools(sdks, true === options.write)
+
+  const surface: ToolSurface = {
+    tools: () => [...STATION_TOOLS.map((t) => ({ ...t })), ...current().map((t) => t.tool)],
+
+    has: (name) => answers.has(name) || current().some((t) => name === t.tool.name),
+
+    async call(name, args) {
+      const answer = answers.get(name)
+      if (undefined !== answer) { return text(answer()) }
+      const found = current().find((t) => name === t.tool.name)
+      if (undefined === found) { return text({ error: 'unknown tool: ' + name }, true) }
+      try {
+        return text(await runtool(found, args))
       }
-      return text(fn())
+      catch (err: any) {
+        return text({ error: String(err?.message ?? err), code: err?.code }, true)
+      }
     },
+  }
+
+  return {
+    ...surface,
+    handle: (message) => handle(surface, message),
+    serve: (io) => serve(surface, io),
   }
 }
 
 // A voxgig/plugin definition. A Station loads it only when handed it:
-// `station.use(StationMcp)`, then `station.extension('mcp/mcp')`.
+// `station.use(StationMcp, { write })`, then `station.extension('mcp/mcp')`.
 export const StationMcp = {
   name: 'mcp',
-  activate(inst: any): void {
-    inst.export('mcp', makemcp(inst.host().exports('station/station')))
+  define(inst: any): void {
+    const sdks: BoundSdk[] = []
+    inst.bind(BOUND_POINT, (sdk: BoundSdk) => { sdks.push(sdk) })
+    inst.export('mcp', makemcp(inst.host().exports('station/station'), sdks,
+      { write: true === inst.options?.write }))
   },
 }

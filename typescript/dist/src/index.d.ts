@@ -1,3 +1,9 @@
+import { PROTOCOL_VERSIONS, SERVER_INFO } from './server';
+import type { Stdio, ToolSurface } from './server';
+import { toolprefix } from './tools';
+import type { BoundSdk, McpResult, McpTool } from './tools';
+export { PROTOCOL_VERSIONS, SERVER_INFO, toolprefix };
+export type { BoundSdk, McpResult, McpTool, Stdio };
 export type StationLike = {
     status(): {
         [key: string]: any;
@@ -7,32 +13,18 @@ export type StationLike = {
         slug: string;
         descriptor: any;
     }[];
+    redact(text: string): string;
 };
-export type McpTool = {
-    name: string;
-    description: string;
-    inputSchema: {
-        type: 'object';
-        properties: {
-            [key: string]: any;
-        };
-    };
+export type McpOptions = {
+    write?: boolean;
 };
-export type McpResult = {
-    content: {
-        type: 'text';
-        text: string;
-    }[];
-    isError?: boolean;
+export type Mcp = ToolSurface & {
+    handle(message: any): Promise<any>;
+    serve(io: Stdio): () => void;
 };
-export type Mcp = {
-    tools(): McpTool[];
-    call(name: string, args?: {
-        [key: string]: any;
-    }): McpResult;
-};
-export declare function makemcp(station: StationLike): Mcp;
+export declare const BOUND_POINT = "sdk.bound";
+export declare function makemcp(station: StationLike, sdks?: BoundSdk[], options?: McpOptions): Mcp;
 export declare const StationMcp: {
     name: string;
-    activate(inst: any): void;
+    define(inst: any): void;
 };
