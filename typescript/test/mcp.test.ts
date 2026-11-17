@@ -7,6 +7,7 @@ import * as StationLib from '@voxgig/station'
 import { Station } from '@voxgig/station'
 
 import { BOUND_POINT, PROTOCOL_VERSIONS, StationMcp, makemcp } from '../src'
+import { handle } from '../src/server'
 
 const ENTITY = {
   planet: { op: { list: {}, load: {}, create: {}, update: {}, remove: {} } },
@@ -179,6 +180,25 @@ test('the station tools answer from the Station\'s public API', async () => {
     }],
   })
   st.close()
+})
+
+test('a station tool that throws is an error result, and no failure path skips redaction', async () => {
+  const redact = (text: string) => text.replace(/sk-live-[0-9]+/g, '[redacted]')
+  const mcp = makemcp({
+    status: () => { throw new Error('status failed with sk-live-0123456789') },
+    plugins: () => [],
+    redact,
+  })
+  const result = await mcp.call('station_status')
+  Assert.strictEqual(result.isError, true)
+  Assert.deepStrictEqual(body(result), { error: 'status failed with [redacted]' })
+
+  const over = await mcp.handle({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'station_status' } })
+  Assert.strictEqual(JSON.stringify(over).includes('sk-live'), false)
+
+  const broken = { ...mcp, call: async () => { throw new Error('broke with sk-live-0123456789') } }
+  const reply: any = await handle(broken, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'station_status' } })
+  Assert.deepStrictEqual(reply.error, { code: -32603, message: 'broke with [redacted]' })
 })
 
 test('JSON-RPC: initialize, ping, the tool methods, and the errors MCP names', async () => {

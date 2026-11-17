@@ -50,21 +50,22 @@ function makemcp(station, sdks = [], options = {}) {
         tools: () => [...STATION_TOOLS.map((t) => ({ ...t })), ...current().map((t) => t.tool)],
         has: (name) => answers.has(name) || current().some((t) => name === t.tool.name),
         async call(name, args) {
-            const answer = answers.get(name);
-            if (undefined !== answer) {
-                return text(answer());
-            }
-            const found = current().find((t) => name === t.tool.name);
-            if (undefined === found) {
-                return text({ error: 'unknown tool: ' + name }, true);
-            }
             try {
+                const answer = answers.get(name);
+                if (undefined !== answer) {
+                    return text(answer());
+                }
+                const found = current().find((t) => name === t.tool.name);
+                if (undefined === found) {
+                    return text({ error: 'unknown tool: ' + name }, true);
+                }
                 return text(await (0, tools_1.runtool)(found, args));
             }
             catch (err) {
                 return text({ error: String(err?.message ?? err), code: err?.code }, true);
             }
         },
+        redact: (raw) => station.redact(raw),
     };
     return {
         ...surface,

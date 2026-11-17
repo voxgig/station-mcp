@@ -72,17 +72,19 @@ export function makemcp(station: StationLike, sdks: BoundSdk[] = [], options: Mc
     has: (name) => answers.has(name) || current().some((t) => name === t.tool.name),
 
     async call(name, args) {
-      const answer = answers.get(name)
-      if (undefined !== answer) { return text(answer()) }
-      const found = current().find((t) => name === t.tool.name)
-      if (undefined === found) { return text({ error: 'unknown tool: ' + name }, true) }
       try {
+        const answer = answers.get(name)
+        if (undefined !== answer) { return text(answer()) }
+        const found = current().find((t) => name === t.tool.name)
+        if (undefined === found) { return text({ error: 'unknown tool: ' + name }, true) }
         return text(await runtool(found, args))
       }
       catch (err: any) {
         return text({ error: String(err?.message ?? err), code: err?.code }, true)
       }
     },
+
+    redact: (raw) => station.redact(raw),
   }
 
   return {

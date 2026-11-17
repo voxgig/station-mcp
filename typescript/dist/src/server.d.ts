@@ -8,6 +8,7 @@ export type ToolSurface = {
     tools(): McpTool[];
     has(name: string): boolean;
     call(name: string, args?: any): Promise<McpResult>;
+    redact(text: string): string;
 };
 type Reply = {
     jsonrpc: '2.0';

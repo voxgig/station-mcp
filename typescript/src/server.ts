@@ -11,6 +11,7 @@ export type ToolSurface = {
   tools(): McpTool[]
   has(name: string): boolean
   call(name: string, args?: any): Promise<McpResult>
+  redact(text: string): string
 }
 
 type Reply = { jsonrpc: '2.0', id: any, result?: any, error?: { code: number, message: string } }
@@ -59,7 +60,7 @@ export async function handle(surface: ToolSurface, message: any): Promise<Reply 
         return { jsonrpc: '2.0', id, result: await surface.call(name, params.arguments) }
       }
       catch (err: any) {
-        return fail(id, INTERNAL_ERROR, String(err?.message ?? err))
+        return fail(id, INTERNAL_ERROR, surface.redact(String(err?.message ?? err)))
       }
     }
     default:
@@ -95,7 +96,8 @@ export function serve(surface: ToolSurface, io: Stdio): () => void {
       }
       handle(surface, message).then(
         (reply) => { if (undefined !== reply) { write(reply) } },
-        (err) => write(fail(message?.id ?? null, INTERNAL_ERROR, String(err?.message ?? err))))
+        (err) => write(fail(message?.id ?? null, INTERNAL_ERROR,
+          surface.redact(String(err?.message ?? err)))))
     }
   }
 
