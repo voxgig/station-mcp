@@ -3,7 +3,8 @@
 A [voxgig/station](https://github.com/voxgig/station) extension: an MCP
 server over a Station, in the application's own process. For each SDK
 the Station binds it serves the tools sdkgen's `go-mcp` target serves
-for one SDK, and two tools about the Station itself.
+for one SDK, and six tools about the Station itself. It speaks MCP over
+stdio, and over streamable HTTP on loopback.
 
 ## Use
 
@@ -81,6 +82,35 @@ daemon, which answers tools of the same names:
 `serve()` speaks MCP's stdio transport: one JSON-RPC message per line,
 in and out. It writes nothing but replies to its output, so an SDK
 feature that logs to standard output must log somewhere else.
+
+`listen({ port, host, path, token, maxSessions })` serves MCP's
+streamable HTTP transport, and resolves to `{ url, port, token, close }`:
+
+```ts
+const live = await station.extension('mcp/mcp').listen()
+console.error('MCP at ' + live.url)    // http://127.0.0.1:<port>/mcp
+```
+
+- It listens on loopback only: `127.0.0.1` by default, or `localhost` or
+  `::1`. Port 0, the default, takes a free port, and the endpoint is
+  `/mcp`.
+- Every request needs `Authorization: Bearer <token>`, as station's
+  proxy asks of its own MCP endpoint. Each `listen()` makes a token
+  unless it is given one of at least 16 characters, and a client is
+  handed the URL and that header.
+- It answers only a `Host` naming the loopback address and port it
+  listens on, and refuses an `Origin` that is not that server, so a page
+  elsewhere cannot rebind a name onto it.
+- `initialize` opens a session: its reply carries `Mcp-Session-Id`, and
+  every later request sends it back. `DELETE` ends a session. Past
+  `maxSessions`, 64 by default, the session used longest ago ends, and
+  its client initializes again.
+- A request is answered with JSON. A notification, or a client's
+  response, is `202` with no body. `GET` is `405`, since the server sends
+  nothing a client did not ask for.
+- A body over 4 MiB is `413`, one that is not `application/json` is
+  `415`, and an unsupported `MCP-Protocol-Version` is `400`, as is a
+  body that is not one JSON-RPC message.
 
 `handle(message)` answers one JSON-RPC message in process. It serves:
 

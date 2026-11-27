@@ -6,6 +6,7 @@ const server_1 = require("./server");
 Object.defineProperty(exports, "INSTRUCTIONS", { enumerable: true, get: function () { return server_1.INSTRUCTIONS; } });
 Object.defineProperty(exports, "PROTOCOL_VERSIONS", { enumerable: true, get: function () { return server_1.PROTOCOL_VERSIONS; } });
 Object.defineProperty(exports, "SERVER_INFO", { enumerable: true, get: function () { return server_1.SERVER_INFO; } });
+const http_1 = require("./http");
 const agent_1 = require("./agent");
 const tools_1 = require("./tools");
 Object.defineProperty(exports, "toolprefix", { enumerable: true, get: function () { return tools_1.toolprefix; } });
@@ -97,6 +98,7 @@ function makemcp(station, sdks = [], options = {}) {
         ...surface,
         handle: (message) => (0, server_1.handle)(surface, message),
         serve: (io) => (0, server_1.serve)(surface, io),
+        listen: (opts) => (0, http_1.listen)(surface, opts),
     };
 }
 // A voxgig/plugin definition. A Station loads it only when handed it:
