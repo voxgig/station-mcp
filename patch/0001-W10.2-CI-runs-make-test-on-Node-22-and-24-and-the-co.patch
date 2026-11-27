@@ -1,0 +1,71 @@
+From a208994aa0dfbf36223e6ffd2d9cdabbc0824c5e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 27 Nov 2026 16:10:40 +0000
+Subject: [PATCH] W10.2: CI runs make test on Node 22 and 24, and the comment
+ gate
+
+station-mcp had no CI. Two workflows now run on every push and pull
+request: make test on Node 22 and 24 (install, build, every test, the
+comment gate, and the stale dist/ check), and the comment gate's own
+tests, as station-view runs them.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0167vhgRnddZXZJm3gcM7pwk
+---
+ .github/workflows/comments.yml | 15 +++++++++++++++
+ .github/workflows/test.yml     | 21 +++++++++++++++++++++
+ 2 files changed, 36 insertions(+)
+ create mode 100644 .github/workflows/comments.yml
+ create mode 100644 .github/workflows/test.yml
+
+diff --git a/.github/workflows/comments.yml b/.github/workflows/comments.yml
+new file mode 100644
+index 0000000..cf1667b
+--- /dev/null
++++ b/.github/workflows/comments.yml
+@@ -0,0 +1,15 @@
++name: Source comment policy
++on: [push, pull_request]
++permissions:
++  contents: read
++jobs:
++  comments:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
++        with:
++          persist-credentials: false
++      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
++        with:
++          node-version: '24'
++      - run: make comments comments-test
+diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
+new file mode 100644
+index 0000000..6a92eeb
+--- /dev/null
++++ b/.github/workflows/test.yml
+@@ -0,0 +1,21 @@
++name: test
++on: [push, pull_request]
++permissions:
++  contents: read
++jobs:
++  test:
++    name: make test, Node ${{ matrix.node }}
++    runs-on: ubuntu-latest
++    strategy:
++      fail-fast: false
++      matrix:
++        node: ['22', '24']
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
++        with:
++          persist-credentials: false
++      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
++        with:
++          node-version: ${{ matrix.node }}
++      - name: make test
++        run: make test
+-- 
+2.43.0
+
