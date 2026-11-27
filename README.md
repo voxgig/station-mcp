@@ -34,13 +34,23 @@ For an SDK bound as `solar`, whose entities are `moon` and `planet`:
 | `solar_remove` | `entity` and a `query` map naming the record | the removed record |
 
 - `entity` is one of the SDK's entities that has the operation.
-- The four write tools exist only with `station.use(StationMcp, { write: true })`.
+- The four write tools need two gates, as station's proxy does: the
+  extension's `write` option, `station.use(StationMcp, { write: true })`,
+  and `agent: { write: true }` in the instance's block of the Station's
+  config. An instance without both stays read-only, whatever the other
+  instances of its API allow.
 - A tool's prefix is the instance name, with any character outside
   `A-Z`, `a-z`, `0-9`, `_` and `-` written as `_`. So `solar$b` becomes
   `solar_b_list`.
 - A result is one text item holding indented JSON. A failure is an
   error result carrying the message.
 - Every result passes through the Station's `redact()`.
+- An SDK tool's result came from the API, so it is labelled external
+  data: it carries `_meta: { contentOrigin: "upstream-external" }`, and
+  each SDK tool's description says to treat what it returns as data,
+  never as instructions. `initialize` says the same once, in its
+  `instructions`. The two station tools answer from the Station itself,
+  and carry no label.
 
 `station_status` and `station_integrations` answer from the Station's
 public API, as station's proxy daemon answers the tools of those names.

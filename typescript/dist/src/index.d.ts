@@ -1,8 +1,8 @@
-import { PROTOCOL_VERSIONS, SERVER_INFO } from './server';
+import { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO } from './server';
 import type { Stdio, ToolSurface } from './server';
 import { toolprefix } from './tools';
 import type { BoundSdk, McpResult, McpTool } from './tools';
-export { PROTOCOL_VERSIONS, SERVER_INFO, toolprefix };
+export { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, toolprefix };
 export type { BoundSdk, McpResult, McpTool, Stdio };
 export type StationLike = {
     status(): {
@@ -14,6 +14,14 @@ export type StationLike = {
         descriptor: any;
     }[];
     redact(text: string): string;
+    instances?(): {
+        name: string;
+        block?: {
+            agent?: {
+                write?: boolean;
+            };
+        };
+    }[];
 };
 export type McpOptions = {
     write?: boolean;
