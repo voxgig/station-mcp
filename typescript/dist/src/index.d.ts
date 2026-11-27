@@ -1,10 +1,11 @@
 import { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO } from './server';
 import type { Stdio, ToolSurface } from './server';
+import type { HttpOptions, Listening } from './http';
 import type { AgentStation } from './agent';
 import { toolprefix } from './tools';
 import type { BoundSdk, McpResult, McpTool } from './tools';
 export { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, toolprefix };
-export type { BoundSdk, McpResult, McpTool, Stdio };
+export type { BoundSdk, HttpOptions, Listening, McpResult, McpTool, Stdio };
 export type StationLike = AgentStation & {
     redact(text: string): string;
     instances?(): {
@@ -22,6 +23,7 @@ export type McpOptions = {
 export type Mcp = ToolSurface & {
     handle(message: any): Promise<any>;
     serve(io: Stdio): () => void;
+    listen(opts?: HttpOptions): Promise<Listening>;
 };
 export declare const BOUND_POINT = "sdk.bound";
 export declare function makemcp(station: StationLike, sdks?: BoundSdk[], options?: McpOptions): Mcp;

@@ -1,13 +1,15 @@
 
 import { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, handle, serve } from './server'
 import type { Stdio, ToolSurface } from './server'
+import { listen } from './http'
+import type { HttpOptions, Listening } from './http'
 import { AGENT_TOOLS, describe, policy, secrets, traffic } from './agent'
 import type { AgentStation } from './agent'
 import { runtool, sdktools, toolprefix } from './tools'
 import type { BoundSdk, McpResult, McpTool } from './tools'
 
 export { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, toolprefix }
-export type { BoundSdk, McpResult, McpTool, Stdio }
+export type { BoundSdk, HttpOptions, Listening, McpResult, McpTool, Stdio }
 
 // The slice of a voxgig/station Station that the tools read.
 export type StationLike = AgentStation & {
@@ -20,6 +22,7 @@ export type McpOptions = { write?: boolean }
 export type Mcp = ToolSurface & {
   handle(message: any): Promise<any>
   serve(io: Stdio): () => void
+  listen(opts?: HttpOptions): Promise<Listening>
 }
 
 // The station point that tells an extension of each client bound.
@@ -117,6 +120,7 @@ export function makemcp(station: StationLike, sdks: BoundSdk[] = [], options: Mc
     ...surface,
     handle: (message) => handle(surface, message),
     serve: (io) => serve(surface, io),
+    listen: (opts) => listen(surface, opts),
   }
 }
 
