@@ -7,6 +7,12 @@ import * as StationLib from '@voxgig/station'
 import { Station } from '@voxgig/station'
 
 import { BOUND_POINT, INSTRUCTIONS, PROTOCOL_VERSIONS, StationMcp, makemcp } from '../src'
+
+const STATION_TOOLS = [
+  'station_status', 'station_integrations', 'station_describe',
+  'station_traffic', 'station_secrets', 'station_policy',
+]
+const N = STATION_TOOLS.length
 import { handle } from '../src/server'
 
 const ENTITY = {
@@ -90,7 +96,7 @@ test('each bound SDK gets go-mcp\'s read tools, and the write tools only when as
 
   const tools = mcp.tools()
   Assert.deepStrictEqual(tools.map((t: any) => t.name),
-    ['station_status', 'station_integrations', 'solar_list', 'solar_load'])
+    [...STATION_TOOLS, 'solar_list', 'solar_load'])
   const list = tools.find((t: any) => 'solar_list' === t.name)
   Assert.deepStrictEqual(list.inputSchema.properties.entity.enum, ['moon', 'planet'])
   Assert.deepStrictEqual(list.inputSchema.required, ['entity'])
@@ -105,7 +111,7 @@ test('each bound SDK gets go-mcp\'s read tools, and the write tools only when as
   const writer = station(agentwrite(true)).use(StationMcp, { write: true })
   writer.connect(fakeSDK('solar'), { instance: 'solar' })
   const names = writer.extension('mcp/mcp').tools().map((t: any) => t.name)
-  Assert.deepStrictEqual(names.slice(2),
+  Assert.deepStrictEqual(names.slice(N),
     ['solar_list', 'solar_load', 'solar_create', 'solar_update', 'solar_remove'])
   const remove = writer.extension('mcp/mcp').tools().find((t: any) => 'solar_remove' === t.name)
   Assert.deepStrictEqual(remove.inputSchema.properties.entity.enum, ['planet'])
@@ -117,7 +123,7 @@ test('a write tool needs both the write option and the instance\'s agent.write, 
   const names = (config: any, options?: any) => {
     const st = station(config).use(StationMcp, options)
     st.connect(fakeSDK('solar'), { instance: 'solar' })
-    const out = st.extension('mcp/mcp').tools().map((t: any) => t.name).slice(2)
+    const out = st.extension('mcp/mcp').tools().map((t: any) => t.name).slice(N)
     st.close()
     return out
   }
@@ -133,7 +139,7 @@ test('a write tool needs both the write option and the instance\'s agent.write, 
   const st = station(agentwrite(true)).use(StationMcp, { write: true })
   st.connect(fakeSDK('solar'), { instance: 'solar' })
   st.connect(fakeSDK('solar'), { instance: 'solar$b' })
-  Assert.deepStrictEqual(st.extension('mcp/mcp').tools().map((t: any) => t.name).slice(2),
+  Assert.deepStrictEqual(st.extension('mcp/mcp').tools().map((t: any) => t.name).slice(N),
     [...READ, 'solar_create', 'solar_update', 'solar_remove', 'solar_b_list', 'solar_b_load'])
   st.close()
 })
@@ -143,8 +149,8 @@ test('what an SDK tool returns is labelled external data, and the station tools\
   st.connect(fakeSDK('solar'), { instance: 'solar' })
   const mcp = st.extension('mcp/mcp')
 
-  for (const tool of mcp.tools().slice(2)) { Assert.ok(tool.description.endsWith(EXTERNAL), tool.name) }
-  for (const tool of mcp.tools().slice(0, 2)) { Assert.ok(!tool.description.includes('external'), tool.name) }
+  for (const tool of mcp.tools().slice(N)) { Assert.ok(tool.description.endsWith(EXTERNAL), tool.name) }
+  for (const tool of mcp.tools().slice(0, N)) { Assert.ok(!tool.description.includes('external'), tool.name) }
 
   const UPSTREAM = { contentOrigin: 'upstream-external' }
   Assert.deepStrictEqual((await mcp.call('solar_list', { entity: 'planet' }))._meta, UPSTREAM)
@@ -204,9 +210,9 @@ test('two instances of one api get two prefixes, and a client bound before use i
   st.connect(SDK, { instance: 'solar' })
   st.connect(SDK, { instance: 'solar$b' })
 
-  Assert.deepStrictEqual(st.extension('mcp/mcp').tools().map((t: any) => t.name).slice(2),
+  Assert.deepStrictEqual(st.extension('mcp/mcp').tools().map((t: any) => t.name).slice(N),
     ['solar_list', 'solar_load', 'solar_b_list', 'solar_b_load'])
-  Assert.ok(st.extension('mcp/mcp').tools()[4].description.startsWith('List records from Solardemo (solar$b). '))
+  Assert.ok(st.extension('mcp/mcp').tools()[N + 2].description.startsWith('List records from Solardemo (solar$b). '))
   st.close()
 })
 
@@ -216,8 +222,8 @@ test('two instance names with one tool prefix: the first keeps it, so a name mea
   st.connect(fakeSDK('solar'), { instance: 'solar$b~x' })
   const mcp = st.extension('mcp/mcp')
 
-  Assert.deepStrictEqual(mcp.tools().map((t: any) => t.name).slice(2), ['solar_b_x_list', 'solar_b_x_load'])
-  Assert.ok(mcp.tools()[2].description.startsWith('List records from Solardemo (solar$b.x). '))
+  Assert.deepStrictEqual(mcp.tools().map((t: any) => t.name).slice(N), ['solar_b_x_list', 'solar_b_x_load'])
+  Assert.ok(mcp.tools()[N].description.startsWith('List records from Solardemo (solar$b.x). '))
   Assert.ok(first)
   st.close()
 })
@@ -270,7 +276,7 @@ test('JSON-RPC: initialize, ping, the tool methods, and the errors MCP names', a
   Assert.strictEqual(await mcp.handle({ jsonrpc: '2.0', method: 'notifications/initialized' }), undefined)
 
   const listed = await mcp.handle({ jsonrpc: '2.0', id: 4, method: 'tools/list' })
-  Assert.deepStrictEqual(listed.result.tools.map((t: any) => t.name), ['station_status', 'station_integrations'])
+  Assert.deepStrictEqual(listed.result.tools.map((t: any) => t.name), STATION_TOOLS)
 
   const called = await mcp.handle({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'station_status', arguments: {} } })
   Assert.deepStrictEqual(body(called.result), { mode: 'solo' })
@@ -307,4 +313,92 @@ test('over stdio every line out is one JSON-RPC frame, a bad line included', asy
   const frames = lines.map((line) => JSON.parse(line))
   Assert.deepStrictEqual(frames.map((f) => [f.id, f.error?.code ?? 'ok']).sort(),
     [[1, 'ok'], [2, 'ok'], [null, -32700]].sort())
+})
+
+test('station_describe drills into a bound plugin\'s descriptor, its names matched case-insensitively', async () => {
+  const st = station().use(StationMcp)
+  st.connect(fakeSDK('solar'), { instance: 'solar' })
+  const mcp = st.extension('mcp/mcp')
+
+  Assert.deepStrictEqual(body(await mcp.call('station_describe', { plugin: 'SOLAR' })), {
+    plugin: 'solar', api: 'solar',
+    entities: {
+      moon: { fields: [], ops: ['list', 'load'] },
+      planet: { fields: [], ops: ['create', 'list', 'load', 'remove', 'update'] },
+    },
+  })
+  const planet = body(await mcp.call('station_describe', { plugin: 'solar', entity: 'Planet' }))
+  Assert.strictEqual(planet.entity, 'planet')
+  Assert.deepStrictEqual(Object.keys(planet.ops).sort(), ['create', 'list', 'load', 'remove', 'update'])
+
+  const nope = await mcp.call('station_describe', { plugin: 'lunar' })
+  Assert.strictEqual(nope.isError, true)
+  Assert.deepStrictEqual(body(nope),
+    { error: 'unknown plugin "lunar"', code: 'station_no_plugin', candidates: ['solar'] })
+  Assert.deepStrictEqual(body(await mcp.call('station_describe', { plugin: 'solar', entity: 'comet' })),
+    { error: 'unknown entity of "solar": "comet"', code: 'station_no_entity', candidates: ['moon', 'planet'] })
+  st.close()
+})
+
+test('station_traffic pages the Station\'s events by a cursor that outlives the ring\'s drops', async () => {
+  const now = Date.now()
+  const events = [
+    { t: now - 600000, kind: 'op', plugin: 'solar', op: { entity: 'planet', op: 'list', outcome: 'ok', durationMs: 3 } },
+    { t: now - 1000, kind: 'http', plugin: 'solar', http: { method: 'GET', path: '/planet', status: 200 } },
+    { t: now - 500, kind: 'http', plugin: 'lunar', http: { method: 'GET', path: '/moon', status: 404 } },
+  ]
+  const mcp = makemcp({
+    status: () => ({ events: { buffered: 3, dropped: 7 } }),
+    plugins: () => [], redact: (t) => t, events: () => events,
+  })
+  const ids = async (args: any) => body(await mcp.call('station_traffic', args)).events.map((e: any) => e.id)
+
+  const all = await mcp.call('station_traffic', {})
+  Assert.deepStrictEqual(all._meta, { contentOrigin: 'upstream-external' })
+  Assert.deepStrictEqual(body(all).events.map((e: any) => e.id), [8, 9, 10])
+  Assert.deepStrictEqual([body(all).more, body(all).next], [false, 10])
+
+  const page = body(await mcp.call('station_traffic', { limit: 2 }))
+  Assert.deepStrictEqual([page.events.map((e: any) => e.id), page.more, page.next], [[8, 9], true, 9])
+  Assert.deepStrictEqual(await ids({ cursor: 9 }), [10])
+  Assert.deepStrictEqual(await ids({ since: '5m' }), [9, 10])
+  Assert.deepStrictEqual(await ids({ plugin: 'LUNAR' }), [10])
+  Assert.deepStrictEqual(await ids({ grep: '/planet' }), [9])
+
+  const bad = await mcp.call('station_traffic', { since: 'soon' })
+  Assert.strictEqual(bad.isError, true)
+  Assert.strictEqual(body(bad).code, 'station_forward_invalid')
+})
+
+test('station_secrets reports what the Station reports, by plugin, and says when it cannot', async () => {
+  const rows = [
+    { plugin: 'solar', secret: 'solar.apikey', chain: ['memory'], store: 'memory', resolution: 'resolved by memory' },
+    { plugin: 'lunar', secret: 'lunar.apikey', chain: ['memory'], resolution: 'unresolved' },
+  ]
+  const mcp = makemcp({ status: () => ({}), plugins: () => [], redact: (t) => t, secrets: async () => rows })
+  Assert.deepStrictEqual(body(await mcp.call('station_secrets', {})), { secrets: rows })
+  Assert.deepStrictEqual(body(await mcp.call('station_secrets', { plugin: 'Lunar' })), { secrets: [rows[1]] })
+  Assert.strictEqual(body(await mcp.call('station_secrets', { plugin: 'comet' })).code, 'station_no_plugin')
+  Assert.strictEqual((await mcp.call('station_secrets', {}))._meta, undefined)
+
+  const older = makemcp({ status: () => ({}), plugins: () => [], redact: (t) => t })
+  const missing = await older.call('station_secrets', {})
+  Assert.strictEqual(missing.isError, true)
+  Assert.match(body(missing).error, /does not report secrets/)
+})
+
+test('station_policy adds whether this server opens the write tools, which needs both gates', async () => {
+  const rows = [
+    { plugin: 'solar', api: 'solar', mode: 'live', hosts: null, resolve: 'library', agentWrite: true },
+    { plugin: 'lunar', api: 'lunar', mode: 'block', hosts: null, resolve: 'library', agentWrite: false },
+  ]
+  const of = (write?: boolean) => makemcp(
+    { status: () => ({}), plugins: () => [], redact: (t) => t, policies: () => rows }, [], { write })
+  const open = body(await of(true).call('station_policy', {}))
+  Assert.deepStrictEqual(open.policies.map((r: any) => [r.plugin, r.writeTools]), [['solar', true], ['lunar', false]])
+  const shut = body(await of().call('station_policy', { plugin: 'SOLAR' }))
+  Assert.deepStrictEqual(shut, { ...rows[0], writeTools: false })
+
+  const older = makemcp({ status: () => ({}), plugins: () => [], redact: (t) => t })
+  Assert.match(body(await older.call('station_policy', {})).error, /does not report its gates/)
 })

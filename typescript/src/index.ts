@@ -1,6 +1,8 @@
 
 import { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, handle, serve } from './server'
 import type { Stdio, ToolSurface } from './server'
+import { AGENT_TOOLS, describe, policy, secrets, traffic } from './agent'
+import type { AgentStation } from './agent'
 import { runtool, sdktools, toolprefix } from './tools'
 import type { BoundSdk, McpResult, McpTool } from './tools'
 
@@ -8,9 +10,7 @@ export { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, toolprefix }
 export type { BoundSdk, McpResult, McpTool, Stdio }
 
 // The slice of a voxgig/station Station that the tools read.
-export type StationLike = {
-  status(): { [key: string]: any }
-  plugins(): { name: string, slug: string, descriptor: any }[]
+export type StationLike = AgentStation & {
   redact(text: string): string
   instances?(): { name: string, block?: { agent?: { write?: boolean } } }[]
 }
@@ -38,7 +38,11 @@ const STATION_TOOLS: McpTool[] = [
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
   },
+  ...AGENT_TOOLS,
 ]
+
+// The station tool whose result can carry upstream text.
+const UPSTREAM = new Set(['station_traffic'])
 
 function entitiesof(descriptor: any): { [entity: string]: string[] } {
   const out: { [entity: string]: string[] } = {}
@@ -50,13 +54,17 @@ function entitiesof(descriptor: any): { [entity: string]: string[] } {
 }
 
 export function makemcp(station: StationLike, sdks: BoundSdk[] = [], options: McpOptions = {}): Mcp {
-  const answers = new Map<string, () => any>([
+  const answers = new Map<string, (args: any) => any>([
     ['station_status', () => station.status()],
     ['station_integrations', () => ({
       integrations: station.plugins().map((p) => ({
         plugin: p.name, api: p.slug, entities: entitiesof(p.descriptor),
       })),
     })],
+    ['station_describe', (args) => describe(station, args)],
+    ['station_traffic', (args) => traffic(station, args)],
+    ['station_secrets', (args) => secrets(station, args)],
+    ['station_policy', (args) => policy(station, args, true === options.write)],
   ])
 
   // Every result and every failure passes through the Station's redaction.
@@ -82,7 +90,14 @@ export function makemcp(station: StationLike, sdks: BoundSdk[] = [], options: Mc
     async call(name, args) {
       try {
         const answer = answers.get(name)
-        if (undefined !== answer) { return text(answer()) }
+        if (undefined !== answer) {
+          try { return text(await answer(args), false, UPSTREAM.has(name)) }
+          catch (err: any) {
+            return text({ error: String(err?.message ?? err), code: err?.code,
+              ...(null == err?.candidates ? {} : { candidates: err.candidates }) },
+            true, UPSTREAM.has(name))
+          }
+        }
         const found = current().find((t) => name === t.tool.name)
         if (undefined === found) { return text({ error: 'unknown tool: ' + name }, true) }
         try { return text(await runtool(found, args), false, true) }
