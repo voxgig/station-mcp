@@ -1,18 +1,11 @@
 import { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO } from './server';
 import type { Stdio, ToolSurface } from './server';
+import type { AgentStation } from './agent';
 import { toolprefix } from './tools';
 import type { BoundSdk, McpResult, McpTool } from './tools';
 export { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, toolprefix };
 export type { BoundSdk, McpResult, McpTool, Stdio };
-export type StationLike = {
-    status(): {
-        [key: string]: any;
-    };
-    plugins(): {
-        name: string;
-        slug: string;
-        descriptor: any;
-    }[];
+export type StationLike = AgentStation & {
     redact(text: string): string;
     instances?(): {
         name: string;

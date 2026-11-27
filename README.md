@@ -52,8 +52,29 @@ For an SDK bound as `solar`, whose entities are `moon` and `planet`:
   `instructions`. The two station tools answer from the Station itself,
   and carry no label.
 
-`station_status` and `station_integrations` answer from the Station's
-public API, as station's proxy daemon answers the tools of those names.
+Six tools are about the Station itself. They answer from its public
+API, in process, with the arguments and result shapes of station's proxy
+daemon, which answers tools of the same names:
+
+| tool | arguments | returns |
+| --- | --- | --- |
+| `station_status` | none | the Station's mode, profile, bound plugins and event counters |
+| `station_integrations` | none | each bound plugin, with its entities and their operations |
+| `station_describe` | `plugin`, and an optional `entity` | the plugin's entities with their fields and operations, or one entity in full |
+| `station_traffic` | optional `plugin`, `since` (`"5m"`), `grep`, `cursor` and `limit` | the Station's recent events, oldest first, each with an `id`, and `more` and `next` for the next page |
+| `station_secrets` | an optional `plugin` | each plugin's secret name, the store that answers it, and a remediation when none does |
+| `station_policy` | an optional `plugin` | each plugin's gates: mode, hosts, allow, budget, resolve, capture, `agentWrite`, and `writeTools`, whether this server opens its write tools |
+
+- A plugin or entity name matches case-insensitively. An unknown one is
+  an error naming the candidates.
+- An event's `id` is its place in everything the Station has kept, so a
+  cursor stays good as the Station drops its oldest events.
+- `station_traffic` carries upstream text, so its result is labelled
+  external data, as an SDK tool's is.
+- `station_secrets` and `station_policy` need a Station that reports
+  `secrets()` and `policies()`. An older one answers them with an error.
+- The proxy's `station_call` is not served: the SDK tools above take its
+  place. Nor is `station_replay`, which replays the proxy's captures.
 
 ## The transport
 

@@ -6,6 +6,7 @@ const server_1 = require("./server");
 Object.defineProperty(exports, "INSTRUCTIONS", { enumerable: true, get: function () { return server_1.INSTRUCTIONS; } });
 Object.defineProperty(exports, "PROTOCOL_VERSIONS", { enumerable: true, get: function () { return server_1.PROTOCOL_VERSIONS; } });
 Object.defineProperty(exports, "SERVER_INFO", { enumerable: true, get: function () { return server_1.SERVER_INFO; } });
+const agent_1 = require("./agent");
 const tools_1 = require("./tools");
 Object.defineProperty(exports, "toolprefix", { enumerable: true, get: function () { return tools_1.toolprefix; } });
 // The station point that tells an extension of each client bound.
@@ -23,7 +24,10 @@ const STATION_TOOLS = [
         inputSchema: { type: 'object', properties: {} },
         annotations: { readOnlyHint: true },
     },
+    ...agent_1.AGENT_TOOLS,
 ];
+// The station tool whose result can carry upstream text.
+const UPSTREAM = new Set(['station_traffic']);
 function entitiesof(descriptor) {
     const out = {};
     const entities = (descriptor && descriptor.entities) || {};
@@ -40,6 +44,10 @@ function makemcp(station, sdks = [], options = {}) {
                     plugin: p.name, api: p.slug, entities: entitiesof(p.descriptor),
                 })),
             })],
+        ['station_describe', (args) => (0, agent_1.describe)(station, args)],
+        ['station_traffic', (args) => (0, agent_1.traffic)(station, args)],
+        ['station_secrets', (args) => (0, agent_1.secrets)(station, args)],
+        ['station_policy', (args) => (0, agent_1.policy)(station, args, true === options.write)],
     ]);
     // Every result and every failure passes through the Station's redaction.
     // What an SDK tool returns came from the upstream, and says so.
@@ -60,7 +68,13 @@ function makemcp(station, sdks = [], options = {}) {
             try {
                 const answer = answers.get(name);
                 if (undefined !== answer) {
-                    return text(answer());
+                    try {
+                        return text(await answer(args), false, UPSTREAM.has(name));
+                    }
+                    catch (err) {
+                        return text({ error: String(err?.message ?? err), code: err?.code,
+                            ...(null == err?.candidates ? {} : { candidates: err.candidates }) }, true, UPSTREAM.has(name));
+                    }
                 }
                 const found = current().find((t) => name === t.tool.name);
                 if (undefined === found) {
