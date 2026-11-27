@@ -63,12 +63,11 @@ unknown tool `-32602`, and a message that is not a JSON-RPC request
 
 ## Develop
 
-The package is not on npm, and has no runtime dependencies. Its tests
-run against a voxgig/station checkout, `STATION_HOME` or a sibling
-`../station`, which `make build` links into `node_modules`. That
-checkout carries the extension points this package needs ahead of their
-release, and it must be built first.
+The package is not on npm, and has no runtime dependencies. It takes
+`@voxgig/station` 0.4.0 or later as a peer dependency, the first release
+that carries station's extension points, and its tests run against npm's
+station.
 
 ```sh
-make test      # install, link station, build, test, comment gate, stale dist/ check
+make test      # install, build, test, comment gate, stale dist/ check
 ```
