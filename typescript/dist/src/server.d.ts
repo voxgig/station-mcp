@@ -4,6 +4,7 @@ export declare const SERVER_INFO: {
     name: string;
     version: string;
 };
+export declare const INSTRUCTIONS: string;
 export type ToolSurface = {
     tools(): McpTool[];
     has(name: string): boolean;
